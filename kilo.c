@@ -1,3 +1,5 @@
+#include <ctype.h>      // iscntrl() function to check for control characters
+#include <stdio.h>      // printf() function
 #include <stdlib.h>     // atexit()
 #include <termios.h>    // terminal control
 #include <unistd.h>     // read() and STDIN_FILENO
@@ -33,8 +35,15 @@ int main() {
   enableRawMode();  
 
   char c;
-  // Read characters until 'q' is pressed
-  while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q');
+
+  // Continuously read and print ASCII codes for each keypress (and characters if printable) until 'q' is pressed
+  while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q') {
+    if (iscntrl(c)) {
+      printf("%d\n", c);
+    } else {
+      printf("%d ('%c')\n", c, c);
+    }
+  }
 
   return 0;
 }
