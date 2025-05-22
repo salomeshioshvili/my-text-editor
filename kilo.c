@@ -1,41 +1,50 @@
-#include <ctype.h>      // iscntrl() function to check for control characters
-#include <stdio.h>      // printf() function
-#include <stdlib.h>     // atexit()
-#include <termios.h>    // terminal control
-#include <unistd.h>     // read() and STDIN_FILENO
+#include <ctype.h>      // Check if character is a control character
+#include <stdio.h>      // Print functions
+#include <stdlib.h>     // Exit functions
+#include <termios.h>    // Terminal settings
+#include <unistd.h>     // Read from keyboard
 
-// Stores the original terminal settings
+// Save original terminal settings
 struct termios orig_termios;
 
-// Restore the original terminal mode when the program exits
+// Put terminal back to normal when program ends
 void disableRawMode() {
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
 }
 
-// Set terminal to raw mode (turn off echo + canonical mode)
+// Make terminal read keys immediately (no Enter needed)
 void enableRawMode() {
-  // Get and save current terminal attributes
+  // Save current terminal settings
   tcgetattr(STDIN_FILENO, &orig_termios);
 
-  // Register disableRawMode to run at exit
+  // Make sure terminal gets restored when program exits
   atexit(disableRawMode);
 
-  // Make a copy of the original settings to modify
+  // Copy settings to modify
   struct termios raw = orig_termios;
 
-  // Modify local flags (c_lflag):
-  // Turn off ECHO (no automatic input display)
-  // Turn off ICANON (input is available immediately, not after Enter)
-  // Turn off IEXTEN (disable Ctrl-V special processing)
-  // Turn off ISIG (disable Ctrl-C and Ctrl-Z signals)
+  // Turn off:
+  // ECHO - don't show what you type
+  // ICANON - don't wait for Enter key
+  // IEXTEN - disable Ctrl-V
+  // ISIG - disable Ctrl-C and Ctrl-Z
   raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
   
-  // Modify input flags (c_iflag):
-  // Turn off ICRNL (fix Ctrl-M by preventing CR to NL translation)
-  // Turn off IXON (disable Ctrl-S and Ctrl-Q flow control)
-  raw.c_iflag &= ~(ICRNL | IXON);
+  // Turn off input processing:
+  // BRKINT - don't send SIGINT on break
+  // ICRNL - don't convert carriage return to newline
+  // INPCK - disable input parity checking
+  // ISTRIP - don't strip 8th bit of characters
+  // IXON - disable Ctrl-S and Ctrl-Q flow control
+  raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
 
-  // Apply the modified settings
+  // Turn off output processing (no automatic \n to \r\n conversion)
+  raw.c_oflag &= ~(OPOST);
+  
+  // Set character size to 8 bits per byte
+  raw.c_cflag |= (CS8);
+
+  // Apply new settings
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
@@ -44,12 +53,12 @@ int main() {
 
   char c;
 
-  // Continuously read and print ASCII codes for each keypress (and characters if printable) until 'q' is pressed
+  // Read each key press and show its number until 'q' is pressed
   while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q') {
     if (iscntrl(c)) {
-      printf("%d\n", c);
+      printf("%d\r\n", c);                    
     } else {
-      printf("%d ('%c')\n", c, c);
+      printf("%d ('%c')\r\n", c, c);          
     }
   }
 
